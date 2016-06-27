@@ -84,8 +84,66 @@ func (t Ticks) Swap(i, j int) {
 	t[i], t[j] = t[j], t[i]
 }
 
+// SimpleMovingAverage computes the SMA for the given span.
+func (t Ticks) SimpleMovingAverage(offset, period int) float64 {
+	if period == 0 {
+		panic(fmt.Errorf("can't average on 0 elements"))
+	}
+	if (offset+1)-period < 0 {
+		return 0.
+	}
+	var sum float64
+	for i := (offset + 1) - period; i <= offset; i++ {
+		sum += t[i].Close
+	}
+	return sum / float64(period)
+}
+
+// ExponentialMovingAverage computes the EMA.
+func (t Ticks) ExponentialMovingAverage(offset, period int) float64 {
+	multiplier := float64(2 / (float64(period) + 1))
+
+	if len(t) < offset {
+		panic(fmt.Errorf("EMA out of bounds"))
+	}
+	// If not enough points, return 0.
+	if (offset+1)-period < 0 {
+		return 0.
+	} else if offset+1 == period { // If len == period, then return SMA.
+		return t.SimpleMovingAverage(offset, 10)
+	}
+	return multiplier*(t[offset].Close-t.ExponentialMovingAverage(offset-1, period)) + t.ExponentialMovingAverage(offset-1, period)
+}
+
 func main() {
-	buf, err := ioutil.ReadFile("a.json")
+	tt := Ticks{
+		{Close: 22.27},
+		{Close: 22.19},
+		{Close: 22.08},
+		{Close: 22.17},
+		{Close: 22.18},
+		{Close: 22.13},
+		{Close: 22.23},
+		{Close: 22.43},
+		{Close: 22.24},
+		{Close: 22.29},
+		{Close: 22.15},
+		{Close: 22.39},
+		{Close: 22.38},
+		{Close: 22.61},
+		{Close: 23.36},
+		{Close: 24.05},
+		{Close: 23.75},
+	}
+	for i, t := range tt {
+		ema := tt.ExponentialMovingAverage(i, 10)
+		sma := tt.SimpleMovingAverage(i, 10)
+		fmt.Printf("%d\t%f\t%.2f\t%.4f\t%.2f\n", i+1, t.Close, sma, 0.1818, ema)
+	}
+}
+
+func main3() {
+	buf, err := ioutil.ReadFile("b.json")
 	if err != nil {
 		log.Fatalf("Error loading json file: %s\n", err)
 	}
